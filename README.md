@@ -1,57 +1,60 @@
-![PAMPLEJUCE](assets/images/pamplejuce.png)
-[![](https://github.com/sudara/pamplejuce/actions/workflows/build_and_test.yml/badge.svg)](https://github.com/sudara/pamplejuce/actions)
+<p align="center">
+  <img src="docs/images/progressionlab-banner.png" alt="Progression Lab: genre-based chord progressions" width="100%">
+</p>
 
-Pamplejuce is a ~~template~~ lifestyle for creating and building JUCE plugins in 2026.
+[![Build & Test](https://github.com/EliA437/progression-lab/actions/workflows/build_and_test.yml/badge.svg)](https://github.com/EliA437/progression-lab/actions)
 
-Out-of-the-box, it:
-
-1. Runs C++23
-2. Uses JUCE 9.x as a git submodule (tracking develop).
-3. Uses CPM for dependency management.
-3. Relies on CMake 3.25 and higher for cross-platform building.
-4. Has [Catch2](https://github.com/catchorg/Catch2) v3.8.1 for the test framework and runner.
-5. Includes a `Tests` target and a `Benchmarks` target with examples to get started quickly.
-6. Has [Melatonin Inspector](https://github.com/sudara/melatonin_inspector) installed as a JUCE module to help relieve headaches when building plugin UI.
-
-It also has integration with GitHub Actions, specifically:
-
-1. Building and testing cross-platform (linux, macOS, Windows) binaries
-2. Running tests and benchmarks in CI
-3. Running [pluginval](http://github.com/tracktion/pluginval) 1.x against the binaries for plugin validation
-4. Config for [installing Intel IPP](https://www.intel.com/content/www/us/en/developer/tools/oneapi/ipp.html)
-5. [Code signing and notarization on macOS](https://melatonin.dev/blog/how-to-code-sign-and-notarize-macos-audio-plugins-in-ci/)
-6. [Windows code signing via Azure Trusted Signing](https://melatonin.dev/blog/code-signing-on-windows-with-azure-trusted-signing/)
-
-It also contains:
-
-1. A `.gitignore` for all platforms.
-2. A `.clang-format` file for keeping code tidy.
-3. A `VERSION` file that will propagate through JUCE and your app.
-4. A ton of useful comments and options around the CMake config.
-
-## How does this all work at a high level?
-
-Check out the [official Pamplejuce documentation](https://melatonin.dev/manuals/pamplejuce/how-does-this-all-work/).
-
-[![Arc - 2024-10-01 51@2x](https://github.com/user-attachments/assets/01d19d2d-fbac-481f-8cec-e9325b2abe57)](https://melatonin.dev/manuals/pamplejuce/how-does-this-all-work/)
-
-## Setting up for YOUR project
-
-This is a template repo!
-
-That means you can click "[Use this template](https://github.com/sudara/pamplejuce/generate)" here or at the top of the page to get your own copy (not fork) of the repo. Then you can make it private or keep it public, up to you.
-
-Then check out the [documentation](https://melatonin.dev/manuals/pamplejuce/setting-your-project-up/) so you know what to tweak.
-
-**Using an AI coding agent?** The included `CLAUDE.md` / `AGENTS.md` has a first-time setup wizard — just ask your agent to set up the project and it will walk you through naming, CI configuration, and code signing.
+**Progression Lab** is an open-source chord progression plugin (VST3 / AU / CLAP / Standalone) built with [JUCE](https://juce.com). Pick a genre, a key and a length, and it generates a chord progression you can preview and drag straight into your DAW as MIDI.
 
 > [!NOTE]
-> Tests will immediately run and fail (go red) until you [set up code signing](https://melatonin.dev/manuals/pamplejuce/getting-started/code-signing/).
+> Progression Lab is in early development. The plugin builds and loads in FL Studio, but the generator and UI described below are still being built. See [`docs/ROADMAP.md`](docs/ROADMAP.md) for the plan.
 
-## Having Issues?
+## What it does (planned for v1)
 
-Thanks to everyone who has contributed to the repository. 
+- **Generate by genre.** Choose a genre (lo-fi, pop, jazz, and more), a key and a length, and get a progression that sounds like that genre.
+- **Preview in the plugin.** A built-in synth plays the progression so you can audition it without leaving the plugin.
+- **Drag into your DAW.** Drag the result onto a MIDI track as a `.mid` clip, then use it with any instrument.
+- **Teach it your taste.** Keep or discard results to train a genre toward what you like.
+- **Make your own genres.** Create a genre from sample chords, and blend genres together.
 
-This repository covers a _lot_ of ground. JUCE itself has a lot of surface area. It's a group effort to maintain the garden and keep things nice!
+## How it works
 
-If something isn't just working out of the box — *it's probably not just you* — others are running into the problem, too, I promise. Check out [the official docs](https://melatonin.dev/manuals/pamplejuce), then please do [open an issue](https://github.com/sudara/pamplejuce/issues/new)!
+- Chords are stored **relative to the key** (semitones above the tonic plus a chord quality), so any progression can be played in any key. Roman numerals are only used for display.
+- Generation uses a **variable-order Markov model with backoff**, not a neural network. Blending genres is a weighted mix of each genre's next-chord probabilities.
+- Stock genres come from a SQLite database (`base.db`) built **offline** by a Python pipeline from public chord datasets and hand-written seed progressions. Python never ships to users; the plugin itself is pure C++.
+- User data (kept progressions, custom genres) lives in a separate `user.db` that updates never overwrite.
+
+## Building from source
+
+Requires CMake 3.25+, Ninja and a C++23 compiler. Clone with submodules:
+
+```bash
+git clone --recurse-submodules https://github.com/EliA437/progression-lab.git
+cd progression-lab
+
+# configure (rerun only when CMakeLists.txt changes)
+cmake -B build -G Ninja -DCMAKE_BUILD_TYPE=Debug
+# build
+cmake --build build
+# run the tests
+ctest --test-dir build --output-on-failure
+```
+
+The Standalone app is the quickest way to see the UI. On macOS the build also copies the plugin formats into `~/Library/Audio/Plug-Ins`.
+
+## Project layout
+
+| Folder | Contents |
+| --- | --- |
+| `source/` | The C++ plugin. `engine/` (generator, blending, voicing), `data/` (SQLite), `midi/` (MIDI export, chord parsing) |
+| `tests/`, `benchmarks/` | Catch2 tests and benchmarks |
+| `pipeline/`, `data/` | Offline Python data pipeline, seed progressions and the built database |
+| `docs/` | The full build plan in [`ROADMAP.md`](docs/ROADMAP.md) |
+
+## Credits
+
+Built from the [Pamplejuce](https://github.com/sudara/pamplejuce) template by Sudara Williams, which provides the CMake setup, CI and packaging. Also uses [JUCE](https://github.com/juce-framework/JUCE), [Catch2](https://github.com/catchorg/Catch2), [pluginval](https://github.com/Tracktion/pluginval) and [Melatonin Inspector](https://github.com/sudara/melatonin_inspector).
+
+## License
+
+See [`LICENSE`](LICENSE).
