@@ -20,50 +20,51 @@
 */
 
 #pragma once
+#include "Chord.h"
 #include <map>
 #include <string>
 #include <vector>
-#include "Chord.h"
 
-namespace pl {
+namespace pl
+{
 
-  // Semitone gaps from the root for each chord quality.
-  inline const std::vector<int>& intervalsFor(const std::string& quality)
-  {
-      static const std::map<std::string, std::vector<int>> table = {
-          { "maj",  { 0, 4, 7 } },
-          { "min",  { 0, 3, 7 } },
-          { "dim",  { 0, 3, 6 } },
-          { "aug",  { 0, 4, 8 } },
-          { "sus2", { 0, 2, 7 } },
-          { "sus4", { 0, 5, 7 } },
-          { "7",    { 0, 4, 7, 10 } },
-          { "maj7", { 0, 4, 7, 11 } },
-          { "min7", { 0, 3, 7, 10 } },
-          { "m7b5", { 0, 3, 6, 10 } },
-          { "dim7", { 0, 3, 6, 9 } },
-          { "9",    { 0, 4, 7, 10, 14 } },
-      };
-      auto it = table.find(quality);
-      return it != table.end() ? it->second : table.at("maj"); // unknown quality → major
-  }
+    // Semitone gaps from the root for each chord quality.
+    inline const std::vector<int>& intervalsFor (const std::string& quality)
+    {
+        static const std::map<std::string, std::vector<int>> table = {
+            { "maj", { 0, 4, 7 } },
+            { "min", { 0, 3, 7 } },
+            { "dim", { 0, 3, 6 } },
+            { "aug", { 0, 4, 8 } },
+            { "sus2", { 0, 2, 7 } },
+            { "sus4", { 0, 5, 7 } },
+            { "7", { 0, 4, 7, 10 } },
+            { "maj7", { 0, 4, 7, 11 } },
+            { "min7", { 0, 3, 7, 10 } },
+            { "m7b5", { 0, 3, 6, 10 } },
+            { "dim7", { 0, 3, 6, 9 } },
+            { "9", { 0, 4, 7, 10, 14 } },
+        };
+        auto it = table.find (quality);
+        return it != table.end() ? it->second : table.at ("maj"); // unknown quality → major
+    }
 
     // Turn one chord into midi note numbers (60 = middle c)
-  inline std::vector<int> chordToNotes(const Chord& chord, const Key& key)
-  {
-      const int rootPitch = (key.tonic + chord.degree) % 12; // 0-11, e.g. 7 = G
-      const int root = 60 + rootPitch;
+    inline std::vector<int> chordToNotes (const Chord& chord, const Key& key)
+    {
+        const int rootPitch = (key.tonic + chord.degree) % 12; // 0-11, e.g. 7 = G
+        const int root = 60 + rootPitch;
 
-      std::vector<int> notes;
+        std::vector<int> notes;
 
-      // Bass note an octave below: the root, or the slash-chord bass if one is set
-      const int bassPitch = chord.bassDegree >= 0 ? (key.tonic + chord.bassDegree) % 12 : rootPitch;
-      notes.push_back(48 + bassPitch);
+        // Bass note an octave below: the root, or the slash-chord bass if one is set
+        const int bassPitch = chord.bassDegree >= 0 ? (key.tonic + chord.bassDegree) % 12 : rootPitch;
+        notes.push_back (48 + bassPitch);
 
-      for (int gap : intervalsFor(chord.quality))
-          notes.push_back(root + gap);
+        for (int gap : intervalsFor (chord.quality))
+            notes.push_back (root + gap);
 
-      return notes;
-  }
+        return notes;
+    }
 
 }

@@ -33,6 +33,18 @@ defaults:
 # jobs are run in parallel on different machines
 # all steps run in series
 jobs:
+  # Fails the run if any C++ file doesn't match .clang-format. Fix locally with scripts/format.sh
+  format:
+    name: Format check
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v7
+      - name: Check formatting
+        run: |
+          pipx install clang-format==23.1.5
+          scripts/format.sh --check
+
   build_and_test:
     # don't double run on PRs
     if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name != github.event.pull_request.base.repo.full_name

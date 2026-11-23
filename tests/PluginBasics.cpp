@@ -25,17 +25,16 @@ TEST_CASE ("Plugin instance", "[instance]")
     }
 }
 
-
 #ifdef PAMPLEJUCE_IPP
     #include <ipp.h>
 
 TEST_CASE ("IPP version", "[ipp]")
 {
     #if defined(__APPLE__)
-        // macOS uses 2021.9.1 from pip wheel (only x86_64 version available)
-        CHECK_THAT (ippsGetLibVersion()->Version, Catch::Matchers::Equals ("2021.9.1 (r0x7e208212)"));
+    // macOS uses 2021.9.1 from pip wheel (only x86_64 version available)
+    CHECK_THAT (ippsGetLibVersion()->Version, Catch::Matchers::Equals ("2021.9.1 (r0x7e208212)"));
     #else
-        CHECK_THAT (ippsGetLibVersion()->Version, Catch::Matchers::StartsWith ("2026"));
+    CHECK_THAT (ippsGetLibVersion()->Version, Catch::Matchers::StartsWith ("2026"));
     #endif
 }
 #endif
