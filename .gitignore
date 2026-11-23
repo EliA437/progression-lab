@@ -28,3 +28,10 @@ cmake-build-debug
 cmake-build-release
 cmake-build-relwithdebinfo
 packaging/Output/*
+# Progression Lab
+build/
+build-*/
+data/raw/
+pipeline/.venv/
+__pycache__/
+.ipynb_checkpoints/
