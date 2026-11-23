@@ -1,158 +1,121 @@
-# CLAUDE.md
+# Progression Lab
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+Open-source chord progression plugin (VST3 / AU / CLAP / Standalone, built with JUCE).
+The user picks a genre, key and length; the plugin generates a chord progression they can
+preview and drag into their DAW as MIDI. Users can keep/discard results to train a genre,
+create their own genres from sample chords, and blend genres.
 
-## First-Time Setup
+**The full build plan is in `docs/ROADMAP.md`. Read it before starting any phase.**
+Where this file and the roadmap disagree, this file wins (see "Overrides" below).
 
-If the values below still say "Pamplejuce" or "Pamplejuce Demo", this project was freshly created from the template and hasn't been personalized yet. Ask the user:
+## About the developer
 
-1. **What's your plugin called?** (display name for DAWs, e.g. "Super Synth")
-2. **What's your company name?** (e.g. "My Audio Co")
-3. **What type of plugin is this?** (synth, effect, utility, etc.)
-4. **What IDE do you use?** (CLion, VS Code, Xcode, other)
-5. **Do you want CI/CD via GitHub Actions?** Note: public repos get unlimited CI minutes, but private repos have a limited monthly allowance. If they're on a private repo and want to avoid burning minutes during active development, suggest commenting out matrix entries in the workflow to build on just one platform (e.g. only their dev OS) and running tests only — they can re-enable the full matrix when preparing a release.
-6. **If using CI, do you need Intel IPP?** (provides SIMD-optimized DSP functions — if not, comment out the IPP install steps in the workflow to avoid CI failures)
-7. **Are you code signing?** Code signing is essentially required to distribute to anyone (beta testers, friends, customers) — without it, macOS Gatekeeper and Windows SmartScreen will block or warn on the plugin. But it can be set up later; it's fine to skip during early development. Ask separately for macOS and Windows:
-   - **macOS**: codesigning + notarization requires an Apple Developer account ($99/year). If not signing yet, comment out the codesign/notarize steps in the CI workflow. Guide: [How to code sign and notarize macOS audio plugins in CI](https://melatonin.dev/blog/how-to-code-sign-and-notarize-macos-audio-plugins-in-ci/)
-   - **Windows**: Azure Trusted Signing is the recommended approach (free tier available). If not signing yet, comment out the Azure signing step. Guide: [Code signing on Windows with Azure Trusted Signing](https://melatonin.dev/blog/code-signing-on-windows-with-azure-trusted-signing/)
+- Eli, CS student. Solid on general programming and C++ basics, new to JUCE and audio plugins.
+- Explain JUCE-specific concepts briefly the first time they come up (threads, processBlock,
+  editors, BinaryData). Don't over-explain general C++.
+- Prefers direct, concise answers and honest assessments.
+- Editor: Neovim (LazyVim, clangd). Do not suggest Xcode as an editor.
+- Primary DAW: FL Studio (VST3). Secondary test DAW: Reaper.
+- Machine: Apple Silicon Mac (arm64), zsh.
 
-Then:
-- Update `CMakeLists.txt`: set `PROJECT_NAME` (no spaces), `PRODUCT_NAME` (display name), `COMPANY_NAME`, `BUNDLE_ID`, `PLUGIN_MANUFACTURER_CODE` (4 chars), and `PLUGIN_CODE` (4 chars)
-- Let the user know: builds default to **Debug** mode for development (faster builds, better debugging). If they're making music with the plugin and experiencing performance issues (audio dropouts, high CPU), they should ask to build in **Release** mode instead.
-- Rewrite the **Build Commands** section below to match their IDE:
-  - **CLion**: use `cmake-build-debug` / `cmake-build-release` as build directories (CLion's defaults — sharing them avoids duplicate builds). Use `-G Ninja` with CLion's bundled ninja so the `.ninja_log` format stays compatible between CLI and IDE builds.
-  - **VS Code**: use `build` or `Builds` as the build directory. Recommend Ninja + the CMake Tools extension.
-  - **Xcode**: use `-G Xcode` and open the generated `.xcodeproj`. CLI builds can use `Builds` with Ninja.
-- If they don't want CI right now, comment out the platforms in the matrix they don't need
-- If they don't need IPP, comment out the IPP install steps in the workflow
-- If they're not code signing on a platform, comment out the relevant signing/notarization steps in the workflow
-- Remove this setup section from CLAUDE.md once complete
+## Current status
 
-## About This Project
+- Phase 0 (tools and repo): done. Plugin builds, loads in FL Studio as a generator,
+  VST3 passes pluginval at strictness 5, local Catch2 tests pass.
+- CI: fixed for Windows (LLVM upgrade) and unsigned builds; confirm all three jobs are green.
+- **Next: Phase 1** — hard-coded I–V–vi–IV progression with MIDI drag-out, tested in FL Studio first.
 
-This project is derived from the [Pamplejuce](https://github.com/sudara/pamplejuce) template — a JUCE audio plugin template using CMake, C++23, and modern CI/CD. It builds cross-platform (macOS, Windows, Linux) with support for multiple plugin formats (VST3, AU, AUv3, CLAP, Standalone).
+Update this section as phases complete.
 
-The template provides the build system, CI/CD, and project structure. The plugin-specific logic lives in `source/`.
-
-## Build Commands
+## Build, test, validate
 
 ```bash
-# Configure (run once, or after CMakeLists.txt changes)
-cmake -B Builds -DCMAKE_BUILD_TYPE=Debug
-
-# Build
-cmake --build Builds --config Debug
-
-# Run tests (from project root)
-ctest --test-dir Builds --verbose --output-on-failure
-
-# Or run tests directly
-./Builds/Tests
-
-# Run a single test by name
-./Builds/Tests "[test name]"
-
-# Run benchmarks
-./Builds/Benchmarks
+# configure (rerun only when CMakeLists.txt changes)
+cmake -B build -G Ninja -DCMAKE_BUILD_TYPE=Debug -DCMAKE_EXPORT_COMPILE_COMMANDS=ON
+# build (copies plugins into ~/Library/Audio/Plug-Ins automatically)
+cmake --build build
+# tests
+ctest --test-dir build --output-on-failure
+# validate (alias set in ~/.zshrc)
+pluginval --strictness-level 5 --validate ~/Library/Audio/Plug-Ins/VST3/Progression\ Lab.vst3
 ```
 
-For faster builds, add Ninja: `cmake -B Builds -G Ninja -DCMAKE_BUILD_TYPE=Debug`
+- Before rebuilding, the plugin must be removed from FL Studio's Channel rack or FL closed.
+- Debug with the Standalone app or JUCE's AudioPluginHost under codelldb. A debugger cannot
+  attach to FL Studio (hardened runtime).
+- `auval` is broken on this Mac for **all** third-party AUs (it doesn't list FabFilter etc.
+  either). Don't try to fix local AU validation; CI validates AU on a clean runner.
+- The libc++ "selected platform is no longer supported" warnings are harmless.
 
-On macOS for universal binary: `-DCMAKE_OSX_ARCHITECTURES="arm64;x86_64"`
+## Repo layout
 
-## Project Structure
-
-- `source/` - Plugin source code (PluginProcessor, PluginEditor)
-- `tests/` - Catch2 test files
-- `benchmarks/` - Catch2 benchmark files
-- `cmake/` - CMake modules (Tests.cmake, Benchmarks.cmake, Assets.cmake, etc.)
-- `modules/` - Git submodules: clap-juce-extensions, melatonin_inspector
-- `JUCE/` - JUCE framework (git submodule)
-- `assets/` - Binary resources (auto-included via juce_add_binary_data)
-- `packaging/` - Installer resources and scripts
-
-## Architecture
-
-**SharedCode Library**: The `SharedCode` INTERFACE library links plugin source code to both the main plugin target and the Tests target, avoiding ODR violations.
-
-**CMake Modules**:
-- `PamplejuceVersion.cmake` - Reads VERSION file, optional auto-bump patch level
-- `PamplejuceFunctions.cmake` - One include that defines the `pamplejuce_*` functions below (and turns off their legacy include-time behavior)
-- `PamplejuceIPP.cmake` - Intel IPP integration (optional)
-
-Target setup happens via explicit function calls in `CMakeLists.txt`, not at include time:
-- `pamplejuce_add_assets()` - Includes all files in assets/ as binary data (from `Assets.cmake`)
-- `pamplejuce_add_tests()` - Configures the Catch2 test target (from `Tests.cmake`)
-- `pamplejuce_add_benchmarks()` - Configures the Catch2 benchmark target (from `Benchmarks.cmake`)
-- `pamplejuce_shared_code_defaults()` - C++23, fast math (from `SharedCodeDefaults.cmake`)
-- `pamplejuce_xcode_prettify()` - Xcode folder/scheme cleanup (from `XcodePrettify.cmake`)
-
-Note: after `include(PamplejuceFunctions)`, a plain `include(Tests)` (or Assets, etc.) is a no-op - call the function instead.
-
-**Test Discovery**: Uses `catch_discover_tests()` with `PRE_TEST` discovery mode for Xcode compatibility.
-
-## Key Configuration
-
-Edit `CMakeLists.txt` to customize:
-- `PROJECT_NAME` - Internal name (no spaces)
-- `PRODUCT_NAME` - Display name in DAWs (can have spaces)
-- `COMPANY_NAME` - Used for bundle name
-- `BUNDLE_ID` - macOS bundle identifier
-- `FORMATS` - Plugin formats to build (Standalone AU VST3 AUv3)
-- `PLUGIN_MANUFACTURER_CODE` / `PLUGIN_CODE` - 4-character plugin IDs
-
-Version is read from the `VERSION` file in project root.
-
-## Code Quality
-
-Always resolve any compile warnings encountered during builds. Warnings should be treated as errors and fixed before considering a task complete.
-
-Note: LSP/clangd often reports false positive diagnostic errors (like "undeclared identifier", "file not found") because it doesn't have full context of the JUCE module system. Ignore these unless the actual build fails.
-
-## Includes
-
-JUCE modules include common standard library headers (`<vector>`, `<algorithm>`, `<string>`, `<memory>`, etc.) so you don't need to add those explicitly in JUCE code. Adding them is harmless but redundant.
-
-## Threading Model
-
-JUCE plugins have two main threads:
-
-- **Audio thread**: Runs `processBlock` — must be realtime-safe (see below). Never block, allocate, or lock.
-- **Message thread**: Runs UI callbacks, parameter listeners, and timer callbacks. Owns the `MessageManager`.
-
-To communicate between them:
-- **Simple values**: Use `std::atomic` or JUCE's `AudioParameterFloat`/`AudioParameterBool` (which are atomic under the hood)
-- **Larger data**: Use a lock-free queue (e.g. `moodycamel::ReaderWriterQueue`) to pass data from message → audio thread
-- **Audio → UI updates**: Use `juce::AsyncUpdater` or `juce::Timer` on the message thread to poll state — never call UI code from the audio thread
-
-## Realtime Safety
-
-For anything in the audio thread / hot DSP path (e.g. `processBlock`):
-- Allocate in constructors or `prepareToPlay`, not while rendering audio
-- Avoid dynamic allocations and container growth (`std::vector::push_back`, map insertion, string building)
-- Prefer fixed-size storage (`std::array`, preallocated buffers, fixed-capacity queues)
-- Keep operations deterministic and lock-free where possible
-
-## Adding Dependencies
-
-**JUCE Modules** live in `modules/` as git submodules. Add with `git submodule add`, then `add_subdirectory` and link to `SharedCode` in `CMakeLists.txt`. Some useful ones:
-
-- [melatonin_inspector](https://github.com/sudara/melatonin_inspector) — runtime component debugger (already included)
-- [melatonin_blur](https://github.com/sudara/melatonin_blur) — fast cross-platform blurs for C++ UI (shadows, glows, frosted glass)
-- [melatonin_perfetto](https://github.com/sudara/melatonin_perfetto) — performance tracing with Perfetto, great for profiling `processBlock` and paint calls
-- [gin](https://github.com/FigBug/gin) — large collection of utilities (DSP, UI components, LookAndFeel, etc.)
-
-**Non-JUCE C++ libraries** should be added via [CPM.cmake](https://github.com/cpm-cmake/CPM.cmake) which is already configured. CPM downloads and caches dependencies at configure time — no submodule needed:
-
-```cmake
-CPMAddPackage("gh:nlohmann/json@3.11.3")
-target_link_libraries(SharedCode INTERFACE nlohmann_json::nlohmann_json)
+```
+source/                 C++ plugin
+  PluginProcessor.*     audio thread, MIDI, state
+  PluginEditor.*        UI
+  engine/               Markov generator, blending, voicing — pure C++, NO JUCE UI code
+  data/                 SQLite access (base.db + user.db)
+  midi/                 MIDI export, chord parsing/detection
+tests/                  Catch2 tests (PluginBasics.cpp is from the template)
+benchmarks/             Catch2 benchmarks
+assets/                 files here are embedded into BinaryData automatically
+pipeline/               offline Python: ingest, normalize, build_db, notebooks
+data/raw/               downloaded datasets (gitignored)
+data/seeds/             hand-written seed progressions per genre (committed)
+data/build/             pipeline output (base.db)
+docs/ROADMAP.md         full phase-by-phase plan
+JUCE/, modules/, cmake/ git submodules — never edit these
 ```
 
-Some useful CPM libraries:
-- [nlohmann/json](https://github.com/nlohmann/json) — JSON parsing/serialization
-- [cameron314/readerwriterqueue](https://github.com/cameron314/readerwriterqueue) — lock-free single-producer/single-consumer queue, ideal for audio↔message thread communication
+## Fixed decisions (don't change without asking)
 
-## Code Style
+- Python never ships to users. It runs offline to build `base.db`. The plugin is pure C++.
+- v1 generator is a variable-order Markov model with backoff, not a neural net.
+  Blending = weighted mix of genres' next-chord probabilities.
+- Chords are stored relative to the key: `degree` = semitones above tonic (0–11), plus
+  `quality` and optional `bass_degree`. Convert to Roman numerals only for display.
+- Two SQLite files: `base.db` (read-only, embedded, replaced on update) and `user.db`
+  (user data, never overwritten, migrated via `PRAGMA user_version`).
+- Genre IDs are string slugs (`lofi`) / UUIDs for user genres, never integer IDs across DBs.
+- Plugin is an instrument (`IS_SYNTH TRUE`) with MIDI in/out and a built-in preview synth.
+- Plugin codes are permanent: manufacturer `Plab`, plugin `Prlb`. Never change them.
 
-Uses `.clang-format` with Allman-style braces, 4-space indentation, no column limit.
+## Overrides to docs/ROADMAP.md
+
+The roadmap was written before the repo existed. Actual setup differs:
+
+- **JUCE version is 9.0.1**, not 8. The roadmap's license note (AGPLv3) was for JUCE 8.
+  Check `JUCE/LICENSE.md` before choosing the repo license. LICENSE is still the template's.
+- **C++23**, set by `pamplejuce_shared_code_defaults()` (roadmap says C++20).
+- **Embedding data (Step 3.1):** don't use `juce_add_binary_data`. Put `base.db` and
+  `schema.sql` in `assets/`; `pamplejuce_add_assets()` embeds them and the `Assets` target
+  is already linked. Access via `BinaryData::base_db`, `BinaryData::schema_sql`.
+- **Adding dependencies:** use CPM (already included), not FetchContent:
+  `CPMAddPackage("gh:SRombauts/SQLiteCpp#3.3.2")`, then add `SQLiteCpp` to
+  `target_link_libraries(SharedCode INTERFACE ...)` in CMakeLists.txt.
+- **All plugin code links through the `SharedCode` INTERFACE target**, so tests can use it.
+  New `.cpp`/`.h` files under `source/` are picked up automatically by the glob.
+
+## Code rules
+
+- Audio thread (`processBlock`): no allocation, no locks, no file/DB access, no strings.
+  Pass data to it via fixed-size structs through a lock-free FIFO (roadmap Step 5.2).
+- DB access and model building happen on background threads; generation (sub-ms) can run
+  on the message thread.
+- Keep `source/engine/` free of JUCE UI dependencies so it's unit-testable.
+- Every engine feature gets a Catch2 test in `tests/`.
+- Run pluginval after changes that touch the processor, state or parameters.
+
+## Git
+
+- Commit with conventional-commit messages and a detailed body (this repo is a portfolio
+  piece recruiters may read). Format:
+  ```
+  feat: short summary in imperative mood
+
+  - What changed and why, one bullet per meaningful change
+  ```
+  Types: feat, fix, refactor, test, docs, ci, chore.
+- Only commit or push when Eli asks.
+- Never commit `build/`, `data/raw/`, `.venv/`, or anything with secrets.
+- Git identity must be the EliA437 GitHub account.
